@@ -1,0 +1,43 @@
+name: FriendlyWrt Build-r2cplus
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y device-tree-compiler  # 安装DTC工具（用于DTB转DTS）
+
+      - name: Build FriendlyWrt
+        run: |
+          ./build.sh rk3328.mk  # 编译RK3328平台的FriendlyWrt固件（包含R2CPLUS支持）
+
+      - name: Extract DTS/DTB and R2CPLUS Configs
+        run: |
+          # 1. 从编译输出中复制DTB文件（R2CPLUS的DTB文件名为rk3328-nanopi-r2c-plus.dtb）
+          mkdir -p artifacts/dtb
+          cp out/rk3328-nanopi-r2c-plus.dtb artifacts/dtb/
+
+          # 2. 使用DTC工具将DTB转换为DTS（可读的文本格式）
+          dtc -I dtb -O dts -o artifacts/dts/rk3328-nanopi-r2c-plus.dts artifacts/dtb/rk3328-nanopi-r2c-plus.dtb
+
+          # 3. 复制R2CPLUS的其他配置文件（如defconfig、Kconfig等，位于configs/目录）
+          mkdir -p artifacts/configs
+          cp configs/nanopi-r2c-plus-rk3328_defconfig artifacts/configs/  # R2CPLUS的默认配置
+          cp configs/rk3328_nanopi_r2c_plus_defconfig artifacts/configs/  # 平台-specific配置
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifacts@v4
+        with:
+          name: friendlywrt-r2cplus-configs
+          path: artifacts/
+          retention-days: 30  # 保留30天
